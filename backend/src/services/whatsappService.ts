@@ -1,54 +1,56 @@
 export const WhatsAppService = {
   sendOtpNotification: async (phoneNumber: string, code: string): Promise<boolean> => {
-    const provider = process.env.WHATSAPP_PROVIDER || 'mock';
+    let cleanPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
+    if (cleanPhone.length === 10) {
+      cleanPhone = `91${cleanPhone}`;
+    }
+
     const message = `🧺 *Dry Cleaning & Laundry App*\nYour 6-digit verification code is: *${code}*\n\nThis code expires in 5 minutes. Do not share it with anyone.`;
 
     console.log(`\n==================================================`);
-    console.log(`💬 [WHATSAPP OTP DISPATCH - Provider: ${provider.toUpperCase()}]`);
-    console.log(`📲 To: ${phoneNumber}`);
+    console.log(`💬 [WHATSAPP OTP DISPATCH]`);
+    console.log(`📲 Target Client Phone: ${cleanPhone}`);
     console.log(`🔑 Verification Code: ${code}`);
     console.log(`==================================================\n`);
 
     // 1. Twilio Integration (Physical SMS & WhatsApp)
-    if (provider === 'twilio' || process.env.TWILIO_ACCOUNT_SID) {
-      const accountSid = process.env.TWILIO_ACCOUNT_SID;
-      const authToken = process.env.TWILIO_AUTH_TOKEN;
-      const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 
-      if (accountSid && authToken && twilioPhone) {
-        try {
-          const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-          const cleanPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber.replace(/\D/g, '').slice(-10)}`;
-          const toFormatted = twilioPhone.startsWith('whatsapp:') ? (cleanPhone.startsWith('whatsapp:') ? cleanPhone : `whatsapp:${cleanPhone}`) : cleanPhone;
+    if (accountSid && authToken && twilioPhone) {
+      try {
+        const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+        const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
+        const toFormatted = twilioPhone.startsWith('whatsapp:') ? `whatsapp:${formattedPhone}` : formattedPhone;
 
-          console.log(`💬 Dispatching Twilio message from ${twilioPhone} to ${toFormatted}...`);
+        console.log(`💬 Dispatching Twilio message from ${twilioPhone} to ${toFormatted}...`);
 
-          const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Basic ${credentials}`,
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              From: twilioPhone,
-              To: toFormatted,
-              Body: message,
-            }),
-          });
-          const data = await res.json();
-          console.log('✅ Twilio SMS Response:', data);
-        } catch (err) {
-          console.error('❌ Twilio send failed:', err);
-        }
+        const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${credentials}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            From: twilioPhone,
+            To: toFormatted,
+            Body: message,
+          }),
+        });
+        const data = await res.json();
+        console.log('✅ Twilio SMS Response:', data);
+      } catch (err) {
+        console.error('❌ Twilio send failed:', err);
       }
     }
 
-    // 2. UltraMsg Integration (WhatsApp Inbox)
+    // 2. UltraMsg Integration (WhatsApp Inbox to Client Phone)
     const instanceId = process.env.ULTRAMSG_INSTANCE_ID;
     const token = process.env.ULTRAMSG_TOKEN;
     if (instanceId && token) {
       try {
-        const cleanPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
+        console.log(`💬 Dispatching UltraMsg WhatsApp OTP to client ${cleanPhone}...`);
         const res = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -59,19 +61,21 @@ export const WhatsAppService = {
           }),
         });
         const data = await res.json();
-        console.log('✅ UltraMsg WhatsApp response:', data);
+        console.log('✅ UltraMsg WhatsApp response for client:', data);
       } catch (err) {
         console.error('❌ UltraMsg send failed:', err);
       }
     }
 
     return true;
-
-    // Mock Mode (Development Default)
-    return true;
   },
 
   sendOrderNotification: async (adminPhone: string, orderData: any): Promise<boolean> => {
+    let cleanAdminPhone = adminPhone.replace(/[\s\-\(\)\+]/g, '');
+    if (cleanAdminPhone.length === 10) {
+      cleanAdminPhone = `91${cleanAdminPhone}`;
+    }
+
     const servicesText = (orderData.services && orderData.services.length > 0)
       ? orderData.services.map((s: string) => `• ${s}`).join('\n')
       : '• Dry Cleaning';
@@ -93,7 +97,7 @@ export const WhatsAppService = {
 
     console.log(`\n==================================================`);
     console.log(`💬 [INSTANT ULTRAMSG ORDER DISPATCH TO OWNER]`);
-    console.log(`📲 Owner Phone: +${adminPhone}`);
+    console.log(`📲 Owner Phone: +${cleanAdminPhone}`);
     console.log(message);
     console.log(`==================================================\n`);
 
@@ -102,11 +106,10 @@ export const WhatsAppService = {
 
     if (instanceId && token) {
       try {
-        const cleanPhone = adminPhone.replace(/[\s\-\(\)\+]/g, '');
         const res = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ token, to: cleanPhone, body: message }),
+          body: new URLSearchParams({ token, to: cleanAdminPhone, body: message }),
         });
         const data = await res.json();
         console.log('✅ UltraMsg Instant Owner Notification response:', data);
@@ -118,4 +121,3 @@ export const WhatsAppService = {
     return true;
   }
 };
-

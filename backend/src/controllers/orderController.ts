@@ -97,7 +97,7 @@ export const OrderController = {
         } catch (_) {}
       }
 
-      // 3. Server-side WhatsApp notification to Admin (+918341726226)
+      // 3. Server-side WhatsApp notification to Owner ONLY (+918341726226)
       await WhatsAppService.sendOrderNotification(ADMIN_WHATSAPP_NUMBER, orderPayload);
 
       res.status(201).json({
@@ -119,38 +119,44 @@ export const OrderController = {
   getOrders: async (req: Request, res: Response): Promise<void> => {
     try {
       const { phoneNumber } = req.query;
-      const phoneStr = typeof phoneNumber === 'string' ? phoneNumber : undefined;
+      const phoneStr = typeof phoneNumber === 'string' ? phoneNumber.trim() : undefined;
 
-      // Fetch directly from MongoDB Atlas
-      try {
-        let dbOrders: any[] = [];
-        if (phoneStr && phoneStr.trim().length > 0) {
-          const cleanPhone = phoneStr.replace(/\D/g, '');
-          dbOrders = await OrderModel.find({
+      // If phone number is specified, strictly isolate and return ONLY this customer's orders
+      if (phoneStr && phoneStr.length > 0) {
+        const cleanPhone = phoneStr.replace(/\D/g, '');
+        const last10Digits = cleanPhone.slice(-10);
+
+        try {
+          const customerOrders = await OrderModel.find({
             $or: [
               { customerPhone: phoneStr },
               { customerPhone: cleanPhone },
-              { customerPhone: { $regex: cleanPhone.slice(-10), $options: 'i' } }
+              { customerPhone: { $regex: last10Digits, $options: 'i' } }
             ]
           }).sort({ createdAt: -1 });
 
-          // If no specific phone match, fetch all orders so user sees placed orders
-          if (!dbOrders || dbOrders.length === 0) {
-            dbOrders = await OrderModel.find({}).sort({ createdAt: -1 });
-          }
-        } else {
-          dbOrders = await OrderModel.find({}).sort({ createdAt: -1 });
+          // Return ONLY matching orders for this customer (empty list [] if new customer with 0 orders)
+          res.status(200).json({ success: true, data: customerOrders || [] });
+          return;
+        } catch (dbErr) {
+          console.warn('⚠️ OrderModel.find warning, falling back to OrderStore:', dbErr);
+          const allLocal = OrderStore.getAll();
+          const filtered = allLocal.filter(o => {
+            const p = (o.customerPhone || '').replace(/\D/g, '');
+            return p.includes(last10Digits);
+          });
+          res.status(200).json({ success: true, data: filtered });
+          return;
         }
-
-        res.status(200).json({ success: true, data: dbOrders });
-        return;
-      } catch (dbErr) {
-        console.warn('⚠️ OrderModel.find warning, falling back to OrderStore:', dbErr);
       }
 
-      // Fallback store read
-      const allOrders = OrderStore.getAll();
-      res.status(200).json({ success: true, data: allOrders });
+      // If no phone number parameter is passed (e.g. admin dashboard), return all orders
+      try {
+        const allDbOrders = await OrderModel.find({}).sort({ createdAt: -1 });
+        res.status(200).json({ success: true, data: allDbOrders });
+      } catch (_) {
+        res.status(200).json({ success: true, data: OrderStore.getAll() });
+      }
     } catch (err: any) {
       res.status(500).json({ success: false, message: err.message });
     }
@@ -189,9 +195,6 @@ export const OrderController = {
     }
   },
 
-  /**
-   * SemPay Integration Info & Credentials Status Endpoint
-   */
   getSemPayConfig: async (req: Request, res: Response): Promise<void> => {
     const creds = SemPayService.getClientCredentials();
     res.status(200).json({

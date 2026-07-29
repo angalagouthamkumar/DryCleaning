@@ -50,13 +50,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
     }
     try {
       final fetched = await _repository.fetchOrders(phoneNumber: _userPhoneNumber);
-      if (fetched.isNotEmpty) {
-        state = state.copyWith(isLoading: false, orders: fetched);
-      } else if (state.orders.isEmpty) {
-        state = state.copyWith(isLoading: false, orders: []);
-      } else {
-        state = state.copyWith(isLoading: false);
-      }
+      state = state.copyWith(isLoading: false, orders: fetched);
     } catch (e) {
       if (!silent) {
         state = state.copyWith(isLoading: false, errorMessage: e.toString());
