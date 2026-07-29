@@ -17,24 +17,13 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Ensure MongoDB connection for serverless requests
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (err) {
-    console.error('Failed to connect DB:', err);
-    next(err);
-  }
-});
-
 // Request logger middleware
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// Health check endpoints
+// Health check endpoints (available even if DB is connecting/re-connecting)
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'online',
@@ -57,6 +46,21 @@ app.get('/api/v1/health', (req, res) => {
     service: 'Dry Cleaning Quick-Commerce Backend API',
     timestamp: new Date(),
   });
+});
+
+// Ensure MongoDB connection for API routes
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err: any) {
+    console.error('Failed to connect DB:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Database connection failed. Please check MongoDB Atlas IP access settings.',
+      error: err.message 
+    });
+  }
 });
 
 // Auth & Order API Routes
