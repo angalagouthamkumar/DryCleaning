@@ -19,7 +19,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
   Timer? _timer;
-  int _secondsRemaining = 60;
+  int _secondsRemaining = 120; // 2 minutes expiry / cooldown
   bool _canResend = false;
   bool _isResending = false;
   bool _isVerifying = false;
@@ -32,7 +32,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   void _startTimer() {
     setState(() {
-      _secondsRemaining = 60;
+      _secondsRemaining = 120;
       _canResend = false;
     });
     _timer?.cancel();
@@ -91,7 +91,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'A new verification code has been dispatched to your mobile phone.',
+                  'A new 6-digit verification code has been dispatched.',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
@@ -138,7 +138,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     if (success) {
       Navigator.pushReplacementNamed(context, '/onboarding-details');
     } else {
-      final errorMsg = ref.read(authStateProvider).errorMessage ?? 'Invalid verification code';
+      // Automatically clear input fields and focus back to first box when invalid/error
+      for (var controller in _controllers) {
+        controller.clear();
+      }
+      _focusNodes[0].requestFocus();
+
+      final errorMsg = ref.read(authStateProvider).errorMessage ?? 'Invalid verification code. Please check and try again.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMsg),
@@ -152,7 +158,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String timerText = '00:${_secondsRemaining.toString().padLeft(2, '0')}';
+    final String minutesStr = (_secondsRemaining ~/ 60).toString().padLeft(2, '0');
+    final String secondsStr = (_secondsRemaining % 60).toString().padLeft(2, '0');
+    final String timerText = '$minutesStr:$secondsStr';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -253,7 +261,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                                     ),
                                   )
                                 : const Text(
-                                    'Resend Code via WhatsApp',
+                                    'Resend Verification Code',
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
@@ -307,5 +315,3 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     );
   }
 }
-
-

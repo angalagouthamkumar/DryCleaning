@@ -1,3 +1,5 @@
+import { OtpModel } from './otpModel';
+
 export interface OtpSession {
   phoneNumber: string;
   code: string;
@@ -6,15 +8,15 @@ export interface OtpSession {
   attempts: number;
 }
 
-const otpMap = new Map<string, OtpSession>();
+const memoryMap = new Map<string, OtpSession>();
 
 export const OtpStore = {
-  saveSession: (phoneNumber: string, code: string): OtpSession => {
-    const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
+  saveSession: async (phoneNumber: string, code: string): Promise<OtpSession> => {
+    const cleanPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes validity
+    const expiresAt = new Date(now.getTime() + 2 * 60 * 1000); // 2 minutes validity
 
-    const session: OtpSession = {
+    const sessionData: OtpSession = {
       phoneNumber: cleanPhone,
       code,
       expiresAt,
@@ -22,24 +24,62 @@ export const OtpStore = {
       attempts: 0,
     };
 
-    otpMap.set(cleanPhone, session);
-    return session;
+    memoryMap.set(cleanPhone, sessionData);
+
+    try {
+      await OtpModel.findOneAndUpdate(
+        { phoneNumber: cleanPhone },
+        { code, expiresAt, lastSentAt: now, attempts: 0 },
+        { upsert: true, new: true }
+      );
+    } catch (err) {
+      console.warn('MongoDB OtpModel save warning:', err);
+    }
+
+    return sessionData;
   },
 
-  getSession: (phoneNumber: string): OtpSession | undefined => {
-    const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
-    return otpMap.get(cleanPhone);
+  getSession: async (phoneNumber: string): Promise<OtpSession | undefined> => {
+    const cleanPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
+
+    try {
+      const dbDoc = await OtpModel.findOne({ phoneNumber: cleanPhone });
+      if (dbDoc) {
+        return {
+          phoneNumber: dbDoc.phoneNumber,
+          code: dbDoc.code,
+          expiresAt: dbDoc.expiresAt,
+          lastSentAt: dbDoc.lastSentAt,
+          attempts: dbDoc.attempts,
+        };
+      }
+    } catch (_) {}
+
+    return memoryMap.get(cleanPhone);
   },
 
-  incrementAttempts: (phoneNumber: string): number => {
-    const session = OtpStore.getSession(phoneNumber);
-    if (!session) return 0;
-    session.attempts += 1;
-    return session.attempts;
+  incrementAttempts: async (phoneNumber: string): Promise<number> => {
+    const cleanPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
+    try {
+      const updated = await OtpModel.findOneAndUpdate(
+        { phoneNumber: cleanPhone },
+        { $inc: { attempts: 1 } },
+        { new: true }
+      );
+      if (updated) return updated.attempts;
+    } catch (_) {}
+
+    const mem = memoryMap.get(cleanPhone);
+    if (!mem) return 0;
+    mem.attempts += 1;
+    return mem.attempts;
   },
 
-  deleteSession: (phoneNumber: string): void => {
-    const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
-    otpMap.delete(cleanPhone);
+  deleteSession: async (phoneNumber: string): Promise<void> => {
+    const cleanPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
+    memoryMap.delete(cleanPhone);
+    try {
+      await OtpModel.deleteOne({ phoneNumber: cleanPhone });
+    } catch (_) {}
   }
 };

@@ -7,20 +7,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_drycleaning_jwt_key_2
 
 export const AuthService = {
   sendOtp: async (phoneNumber: string): Promise<{ success: boolean; message: string; cooldownSeconds?: number }> => {
-    const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    const cleanPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
     if (!cleanPhone || cleanPhone.length < 8) {
       throw new Error('Please enter a valid phone number.');
     }
 
-    const existingSession = OtpStore.getSession(cleanPhone);
+    const existingSession = await OtpStore.getSession(cleanPhone);
     if (existingSession) {
       const now = new Date();
-      const elapsedSeconds = Math.floor((now.getTime() - existingSession.lastSentAt.getTime()) / 1000);
-      if (elapsedSeconds < 60) {
+      const elapsedSeconds = Math.floor((now.getTime() - new Date(existingSession.lastSentAt).getTime()) / 1000);
+      if (elapsedSeconds < 120) {
         return {
           success: false,
-          message: `Please wait ${60 - elapsedSeconds} seconds before requesting another code.`,
-          cooldownSeconds: 60 - elapsedSeconds,
+          message: `Please wait ${120 - elapsedSeconds} seconds before requesting another code.`,
+          cooldownSeconds: 120 - elapsedSeconds,
         };
       }
     }
@@ -28,7 +28,7 @@ export const AuthService = {
     // Generate strict random 6-digit OTP code (e.g. 849201)
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    OtpStore.saveSession(cleanPhone, code);
+    await OtpStore.saveSession(cleanPhone, code);
     await WhatsAppService.sendOtpNotification(cleanPhone, code);
 
     return {
@@ -42,30 +42,30 @@ export const AuthService = {
   },
 
   verifyOtp: async (phoneNumber: string, code: string): Promise<{ token: string; user: User; isNewUser: boolean }> => {
-    const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
-    const session = OtpStore.getSession(cleanPhone);
+    const cleanPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
+    const session = await OtpStore.getSession(cleanPhone);
 
     if (!session) {
       throw new Error('OTP session expired or not found. Please request a new verification code.');
     }
 
-    if (new Date() > session.expiresAt) {
-      OtpStore.deleteSession(cleanPhone);
+    if (new Date() > new Date(session.expiresAt)) {
+      await OtpStore.deleteSession(cleanPhone);
       throw new Error('Verification code has expired. Please request a new code.');
     }
 
     const isValidCode = session.code === code.trim();
 
     if (!isValidCode) {
-      const attempts = OtpStore.incrementAttempts(cleanPhone);
+      const attempts = await OtpStore.incrementAttempts(cleanPhone);
       if (attempts >= 5) {
-        OtpStore.deleteSession(cleanPhone);
+        await OtpStore.deleteSession(cleanPhone);
         throw new Error('Too many invalid attempts. Please request a new code.');
       }
       throw new Error('Invalid 6-digit verification code. Please check and try again.');
     }
 
-    OtpStore.deleteSession(cleanPhone);
+    await OtpStore.deleteSession(cleanPhone);
 
     let user = UserStore.findByPhone(cleanPhone);
     let isNewUser = false;

@@ -5,10 +5,10 @@ export const WhatsAppService = {
       cleanPhone = `91${cleanPhone}`;
     }
 
-    const message = `*Dry Cleaning & Laundry App*\nYour 6-digit verification code is: *${code}*\n\nThis code expires in 5 minutes. Do not share it with anyone.`;
+    const message = `*Dry Cleaning & Laundry App*\nYour 6-digit verification code is: *${code}*\n\nThis code expires in 2 minutes. Do not share it with anyone.`;
 
     console.log(`\n==================================================`);
-    console.log(`[OTP DISPATCH TO CLIENT]`);
+    console.log(`[SMS OTP DISPATCH]`);
     console.log(`Target Client Phone: ${cleanPhone}`);
     console.log(`Verification Code: ${code}`);
     console.log(`==================================================\n`);
@@ -45,28 +45,6 @@ export const WhatsAppService = {
       }
     }
 
-    const instanceId = process.env.ULTRAMSG_INSTANCE_ID || 'instance186541';
-    const token = process.env.ULTRAMSG_TOKEN || 'zbujckflu7mbn4xa';
-
-    if (instanceId && token) {
-      try {
-        console.log(`Dispatching UltraMsg WhatsApp OTP to client ${cleanPhone}...`);
-        const res = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            token: token,
-            to: cleanPhone,
-            body: message,
-          }),
-        });
-        const data = await res.json();
-        console.log('UltraMsg WhatsApp response for client:', data);
-      } catch (err) {
-        console.error('UltraMsg send failed:', err);
-      }
-    }
-
     return true;
   },
 
@@ -75,6 +53,9 @@ export const WhatsAppService = {
     if (cleanAdminPhone.length === 10) {
       cleanAdminPhone = `91${cleanAdminPhone}`;
     }
+
+    const instanceId = process.env.ULTRAMSG_INSTANCE_ID || 'instance186541';
+    const token = process.env.ULTRAMSG_TOKEN || 'zbujckflu7mbn4xa';
 
     const servicesText = (orderData.services && orderData.services.length > 0)
       ? orderData.services.map((s: string) => `* ${s}`).join('\n')
@@ -101,9 +82,6 @@ export const WhatsAppService = {
     console.log(message);
     console.log(`==================================================\n`);
 
-    const instanceId = process.env.ULTRAMSG_INSTANCE_ID || 'instance186541';
-    const token = process.env.ULTRAMSG_TOKEN || 'zbujckflu7mbn4xa';
-
     if (instanceId && token) {
       try {
         const res = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
@@ -113,6 +91,47 @@ export const WhatsAppService = {
         });
         const data = await res.json();
         console.log('UltraMsg Instant Owner Notification response:', data);
+
+        // Send real customer garment photos to Owner WhatsApp via UltraMsg Image API
+        if (orderData.photoUrls && Array.isArray(orderData.photoUrls) && orderData.photoUrls.length > 0) {
+          for (let idx = 0; idx < orderData.photoUrls.length; idx++) {
+            const photo = orderData.photoUrls[idx];
+            if (photo && photo.length > 0) {
+              try {
+                await fetch(`https://api.ultramsg.com/${instanceId}/messages/image`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                  body: new URLSearchParams({
+                    token,
+                    to: cleanAdminPhone,
+                    image: photo,
+                    caption: `Garment Photo #${idx + 1} for Order ${orderData.orderId}`,
+                  }),
+                });
+              } catch (photoErr) {
+                console.error('UltraMsg photo send exception:', photoErr);
+              }
+            }
+          }
+        }
+
+        // Send real voice instruction to Owner WhatsApp via UltraMsg Audio API
+        if (orderData.voiceNoteUrl && orderData.voiceNoteUrl.length > 0) {
+          try {
+            await fetch(`https://api.ultramsg.com/${instanceId}/messages/audio`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                token,
+                to: cleanAdminPhone,
+                audio: orderData.voiceNoteUrl,
+              }),
+            });
+          } catch (voiceErr) {
+            console.error('UltraMsg voice note send exception:', voiceErr);
+          }
+        }
+
       } catch (err) {
         console.error('UltraMsg order notification failed:', err);
       }
