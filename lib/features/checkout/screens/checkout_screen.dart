@@ -409,7 +409,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         "customerName": realCustomerName,
         "customerPhone": realCustomerPhone,
         "fullAddress": realAddress,
-        "landmark": "Near Metro Pillar 24",
+        "landmark": "",
         "latitude": locationState.latitude ?? 17.476370,
         "longitude": locationState.longitude ?? 78.488990,
         "liveLocationUrl": "https://maps.google.com/?q=${locationState.latitude ?? 17.476370},${locationState.longitude ?? 78.488990}",

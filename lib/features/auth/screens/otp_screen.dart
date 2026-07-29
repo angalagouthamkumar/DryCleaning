@@ -19,7 +19,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
 
   Timer? _timer;
-  int _secondsRemaining = 30;
+  int _secondsRemaining = 60;
   bool _canResend = false;
   bool _isResending = false;
   bool _isVerifying = false;
@@ -32,7 +32,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   void _startTimer() {
     setState(() {
-      _secondsRemaining = 30;
+      _secondsRemaining = 60;
       _canResend = false;
     });
     _timer?.cancel();

@@ -8,7 +8,7 @@ export const WhatsAppService = {
     const message = `*Dry Cleaning & Laundry App*\nYour 6-digit verification code is: *${code}*\n\nThis code expires in 5 minutes. Do not share it with anyone.`;
 
     console.log(`\n==================================================`);
-    console.log(`[SMS OTP DISPATCH]`);
+    console.log(`[OTP DISPATCH TO CLIENT]`);
     console.log(`Target Client Phone: ${cleanPhone}`);
     console.log(`Verification Code: ${code}`);
     console.log(`==================================================\n`);
@@ -42,6 +42,28 @@ export const WhatsAppService = {
         console.log('Twilio SMS Response:', data);
       } catch (err) {
         console.error('Twilio SMS send failed:', err);
+      }
+    }
+
+    const instanceId = process.env.ULTRAMSG_INSTANCE_ID || 'instance186541';
+    const token = process.env.ULTRAMSG_TOKEN || 'zbujckflu7mbn4xa';
+
+    if (instanceId && token) {
+      try {
+        console.log(`Dispatching UltraMsg WhatsApp OTP to client ${cleanPhone}...`);
+        const res = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            token: token,
+            to: cleanPhone,
+            body: message,
+          }),
+        });
+        const data = await res.json();
+        console.log('UltraMsg WhatsApp response for client:', data);
+      } catch (err) {
+        console.error('UltraMsg send failed:', err);
       }
     }
 
