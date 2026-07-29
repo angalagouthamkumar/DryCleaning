@@ -43,22 +43,18 @@ export const AuthService = {
 
   verifyOtp: async (phoneNumber: string, code: string): Promise<{ token: string; user: User; isNewUser: boolean }> => {
     const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
-    const trimmedCode = code.trim();
     const session = OtpStore.getSession(cleanPhone);
 
-    // Support universal demo bypass codes (123456 / 999999) for testing reliability on serverless cold starts
-    const isDemoCode = trimmedCode === '123456' || trimmedCode === '999999';
-
-    if (!session && !isDemoCode) {
+    if (!session) {
       throw new Error('OTP session expired or not found. Please request a new verification code.');
     }
 
-    if (session && new Date() > session.expiresAt && !isDemoCode) {
+    if (new Date() > session.expiresAt) {
       OtpStore.deleteSession(cleanPhone);
       throw new Error('Verification code has expired. Please request a new code.');
     }
 
-    const isValidCode = isDemoCode || (session && session.code === trimmedCode);
+    const isValidCode = session.code === code.trim();
 
     if (!isValidCode) {
       const attempts = OtpStore.incrementAttempts(cleanPhone);
@@ -69,9 +65,7 @@ export const AuthService = {
       throw new Error('Invalid 6-digit verification code. Please check and try again.');
     }
 
-    if (session) {
-      OtpStore.deleteSession(cleanPhone);
-    }
+    OtpStore.deleteSession(cleanPhone);
 
     let user = UserStore.findByPhone(cleanPhone);
     let isNewUser = false;
