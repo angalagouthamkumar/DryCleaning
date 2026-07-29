@@ -64,6 +64,78 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final List<XFile> _selectedPhotos = [];
   final List<String> _selectedPhotosBase64 = [];
 
+  final List<Map<String, String>> _slots = const [
+    {
+      'title': 'Tomorrow, 2:00 PM - 4:00 PM',
+      'subtitle': 'Afternoon slot (Recommended)',
+      'isExpress': 'false',
+    },
+    {
+      'title': '⚡ Express Fast Pickup & Delivery',
+      'subtitle': 'Fastest rider dispatch to your doorstep',
+      'isExpress': 'true',
+    },
+    {
+      'title': 'Today, 10:00 AM - 12:00 PM',
+      'subtitle': 'Standard pickup window',
+      'isExpress': 'false',
+    },
+    {
+      'title': 'Today, 5:00 PM - 7:00 PM',
+      'subtitle': 'Evening slot',
+      'isExpress': 'false',
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPickupSlot = 'Tomorrow, 2:00 PM - 4:00 PM';
+    _selectedPaymentMethod = 'SemPay UPI Gateway (Instant Auto-App)';
+    _cartQuantities = Map<String, int>.from(
+      (widget.initialCartItems != null && widget.initialCartItems!.isNotEmpty)
+          ? widget.initialCartItems!
+          : {'s1': 2, 's3': 1, 's2': 3},
+    );
+
+    _hintTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted) {
+        setState(() {
+          _currentHintIndex = (_currentHintIndex + 1) % _placeholderNotes.length;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _hintTimer?.cancel();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  void _updateQuantity(String itemId, int delta) {
+    setState(() {
+      final current = _cartQuantities[itemId] ?? 0;
+      final next = current + delta;
+      if (next <= 0) {
+        _cartQuantities.remove(itemId);
+      } else {
+        _cartQuantities[itemId] = next;
+      }
+    });
+  }
+
+  double get _calculatedSubtotal {
+    double sum = 0.0;
+    _cartQuantities.forEach((id, qty) {
+      final item = _itemLookup[id];
+      final price = (item?['price'] ?? 60) as int;
+      sum += price * qty;
+    });
+    return sum > 0 ? sum : (widget.subtotal > 0 ? widget.subtotal : 470.0);
+  }
+
   void _pickGarmentPhoto() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 60);
