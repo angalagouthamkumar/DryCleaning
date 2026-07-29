@@ -185,6 +185,11 @@ export const OrderController = {
         updatedOrder = OrderStore.updateStatus(idStr, status as any);
       }
 
+      // Server-side WhatsApp alert to Owner (+918341726226) when client cancels or updates an order
+      if (updatedOrder) {
+        await WhatsAppService.sendOrderStatusUpdateNotification(ADMIN_WHATSAPP_NUMBER, updatedOrder, status);
+      }
+
       res.status(200).json({
         success: true,
         message: `Order status updated to ${status}`,
