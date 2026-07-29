@@ -8,12 +8,12 @@ export const WhatsAppService = {
     const message = `🧺 *Dry Cleaning & Laundry App*\nYour 6-digit verification code is: *${code}*\n\nThis code expires in 5 minutes. Do not share it with anyone.`;
 
     console.log(`\n==================================================`);
-    console.log(`💬 [WHATSAPP OTP DISPATCH]`);
+    console.log(`💬 [SMS OTP DISPATCH]`);
     console.log(`📲 Target Client Phone: ${cleanPhone}`);
     console.log(`🔑 Verification Code: ${code}`);
     console.log(`==================================================\n`);
 
-    // 1. Twilio Integration (Physical SMS & WhatsApp)
+    // Twilio SMS Integration (Dispatches via official SMS Gateway, NOT your personal WhatsApp)
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
@@ -22,9 +22,11 @@ export const WhatsAppService = {
       try {
         const credentials = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
         const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
-        const toFormatted = twilioPhone.startsWith('whatsapp:') ? `whatsapp:${formattedPhone}` : formattedPhone;
+        // Enforce SMS routing so it never sends from your personal WhatsApp account
+        const toFormatted = twilioPhone.startsWith('whatsapp:') ? formattedPhone : formattedPhone;
+        const fromPhone = twilioPhone.replace(/^whatsapp:/, '');
 
-        console.log(`💬 Dispatching Twilio message from ${twilioPhone} to ${toFormatted}...`);
+        console.log(`💬 Dispatching Twilio SMS from ${fromPhone} to ${toFormatted}...`);
 
         const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
           method: 'POST',
@@ -33,7 +35,7 @@ export const WhatsAppService = {
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: new URLSearchParams({
-            From: twilioPhone,
+            From: fromPhone,
             To: toFormatted,
             Body: message,
           }),
@@ -41,29 +43,7 @@ export const WhatsAppService = {
         const data = await res.json();
         console.log('✅ Twilio SMS Response:', data);
       } catch (err) {
-        console.error('❌ Twilio send failed:', err);
-      }
-    }
-
-    // 2. UltraMsg Integration (WhatsApp Inbox to Client Phone)
-    const instanceId = process.env.ULTRAMSG_INSTANCE_ID;
-    const token = process.env.ULTRAMSG_TOKEN;
-    if (instanceId && token) {
-      try {
-        console.log(`💬 Dispatching UltraMsg WhatsApp OTP to client ${cleanPhone}...`);
-        const res = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            token: token,
-            to: cleanPhone,
-            body: message,
-          }),
-        });
-        const data = await res.json();
-        console.log('✅ UltraMsg WhatsApp response for client:', data);
-      } catch (err) {
-        console.error('❌ UltraMsg send failed:', err);
+        console.error('❌ Twilio SMS send failed:', err);
       }
     }
 
