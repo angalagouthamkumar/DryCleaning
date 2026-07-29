@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1024603054765",
+    "project_id": "authentication-e3bf4",
+    "storage_bucket": "authentication-e3bf4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1024603054765:android:f4638108dd897c99691c24",
+        "android_client_info": {
+          "package_name": "com.example.drycleaning_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoR-d5zsxHh_mk9ZlvA6vnsVOQPlVewe8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
