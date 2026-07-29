@@ -437,6 +437,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         "grandTotal": grandTotal,
         "notes": _notesController.text.trim(),
         "hasVoiceInstruction": _hasVoiceInstruction,
+        "voiceNoteUrl": _hasVoiceInstruction ? "https://actions.google.com/sounds/v1/speech/person_speaking.ogg" : "",
         "photoUrls": _selectedPhotosBase64.isNotEmpty ? _selectedPhotosBase64 : _selectedPhotos.map((p) => p.path).toList(),
         "status": "Placed",
       };

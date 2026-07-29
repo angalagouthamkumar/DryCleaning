@@ -16,11 +16,11 @@ export const AuthService = {
     if (existingSession) {
       const now = new Date();
       const elapsedSeconds = Math.floor((now.getTime() - new Date(existingSession.lastSentAt).getTime()) / 1000);
-      if (elapsedSeconds < 120) {
+      if (elapsedSeconds < 30) {
         return {
           success: false,
-          message: `Please wait ${120 - elapsedSeconds} seconds before requesting another code.`,
-          cooldownSeconds: 120 - elapsedSeconds,
+          message: `Please wait ${30 - elapsedSeconds} seconds before requesting another code.`,
+          cooldownSeconds: 30 - elapsedSeconds,
         };
       }
     }
