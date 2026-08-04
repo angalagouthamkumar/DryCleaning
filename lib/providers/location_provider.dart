@@ -34,9 +34,7 @@ class LocationState {
 }
 
 class LocationNotifier extends StateNotifier<LocationState> {
-  LocationNotifier() : super(LocationState()) {
-    fetchLiveLocation();
-  }
+  LocationNotifier() : super(LocationState());
 
   Future<void> fetchLiveLocation() async {
     state = state.copyWith(isLoading: true, error: null);

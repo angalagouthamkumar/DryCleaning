@@ -84,22 +84,28 @@ class AuthRepository {
   }
 
   Future<void> saveToken(String token) async {
-    await _storage.write(key: 'auth_token', value: token);
+    try {
+      await _storage.write(key: 'auth_token', value: token);
+    } catch (_) {}
   }
 
   Future<String?> getToken() async {
-    return await _storage.read(key: 'auth_token');
+    try {
+      return await _storage.read(key: 'auth_token');
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> saveUserData(Map<String, dynamic> user) async {
-    await _storage.write(key: 'is_logged_in', value: 'true');
-    await _storage.write(key: 'user_data', value: jsonEncode(user));
+    try {
+      await _storage.write(key: 'is_logged_in', value: 'true');
+      await _storage.write(key: 'user_data', value: jsonEncode(user));
+    } catch (_) {}
   }
 
   Future<Map<String, dynamic>?> getUserData() async {
     try {
-      final isLoggedIn = await _storage.read(key: 'is_logged_in');
-      if (isLoggedIn != 'true') return null;
       final raw = await _storage.read(key: 'user_data');
       if (raw != null && raw.isNotEmpty) {
         return jsonDecode(raw) as Map<String, dynamic>;
@@ -109,13 +115,21 @@ class AuthRepository {
   }
 
   Future<bool> isLoggedIn() async {
-    final val = await _storage.read(key: 'is_logged_in');
-    return val == 'true';
+    try {
+      final val = await _storage.read(key: 'is_logged_in');
+      final raw = await _storage.read(key: 'user_data');
+      final token = await _storage.read(key: 'auth_token');
+      return val == 'true' || (token != null && token.isNotEmpty) || (raw != null && raw.isNotEmpty);
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: 'auth_token');
-    await _storage.delete(key: 'is_logged_in');
-    await _storage.delete(key: 'user_data');
+    try {
+      await _storage.delete(key: 'auth_token');
+      await _storage.delete(key: 'is_logged_in');
+      await _storage.delete(key: 'user_data');
+    } catch (_) {}
   }
 }

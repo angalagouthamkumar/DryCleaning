@@ -4,6 +4,8 @@ import { OrderStore } from '../models/orderStore';
 import { OrderModel } from '../models/orderModel';
 import { WhatsAppService } from '../services/whatsappService';
 import { SemPayService } from '../services/semPayService';
+import { NotificationService } from '../services/notificationService';
+import { RiderEarningsController } from './riderEarningsController';
 
 const ADMIN_WHATSAPP_NUMBER = '918341726226';
 
@@ -32,6 +34,7 @@ export const OrderController = {
         hasVoiceInstruction,
         voiceNoteUrl,
         photoUrls,
+        fcmToken,
       } = req.body;
 
       const liveLocationUrl = incomingLiveLocationUrl || (latitude && longitude ? `https://maps.google.com/?q=${latitude},${longitude}` : '');
@@ -55,6 +58,7 @@ export const OrderController = {
         latitude: latitude,
         longitude: longitude,
         liveLocationUrl,
+        fcmToken: fcmToken || '',
         services: services || [],
         items: items || [],
         pickupDate: pickupDate || '',
@@ -78,9 +82,9 @@ export const OrderController = {
       // 1. Direct save to MongoDB Atlas Database
       try {
         savedOrder = await OrderModel.create(orderPayload);
-        console.log(`✅ Order ${orderId} saved to MongoDB Atlas database successfully! ID: ${savedOrder._id}`);
+        console.log(`[SUCCESS] Order ${orderId} saved to MongoDB Atlas database successfully! ID: ${savedOrder._id}`);
       } catch (dbErr: any) {
-        console.error('❌ MongoDB Atlas save error:', dbErr);
+        console.error('[ERROR] MongoDB Atlas save error:', dbErr);
         // Fallback to memory store if DB creation fails
         savedOrder = OrderStore.create(orderPayload as any);
       }
@@ -111,7 +115,7 @@ export const OrderController = {
         },
       });
     } catch (err: any) {
-      console.error('❌ createOrder endpoint exception:', err);
+      console.error('[ERROR] createOrder endpoint exception:', err);
       res.status(500).json({ success: false, message: err.message });
     }
   },
@@ -139,7 +143,7 @@ export const OrderController = {
           res.status(200).json({ success: true, data: customerOrders || [] });
           return;
         } catch (dbErr) {
-          console.warn('⚠️ OrderModel.find warning, falling back to OrderStore:', dbErr);
+          console.warn('[WARNING] OrderModel.find warning, falling back to OrderStore:', dbErr);
           const allLocal = OrderStore.getAll();
           const filtered = allLocal.filter(o => {
             const p = (o.customerPhone || '').replace(/\D/g, '');
@@ -185,9 +189,15 @@ export const OrderController = {
         updatedOrder = OrderStore.updateStatus(idStr, status as any);
       }
 
-      // Server-side WhatsApp alert to Owner (+918341726226) when client cancels or updates an order
+      // Server-side WhatsApp alert to Owner (+918341726226) & FCM push notification to Customer
       if (updatedOrder) {
         await WhatsAppService.sendOrderStatusUpdateNotification(ADMIN_WHATSAPP_NUMBER, updatedOrder, status);
+        await NotificationService.sendOrderStatusNotification(updatedOrder.fcmToken, updatedOrder, status);
+
+        if ((status || '').toLowerCase().includes('delivered')) {
+          const riderId = updatedOrder.assignedRiderId || 'RIDER_101';
+          await RiderEarningsController.recordOrderDeliveryEarning(updatedOrder.orderId, riderId);
+        }
       }
 
       res.status(200).json({

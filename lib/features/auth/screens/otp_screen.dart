@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_radius.dart';
+import '../../../core/services/content_service.dart';
 import '../../../providers/auth_provider.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
@@ -85,21 +86,21 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       _startTimer();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Row(
+          content: Row(
             children: [
-              Icon(Icons.check_circle_outline, color: Colors.white),
-              SizedBox(width: 12),
+              const Icon(Icons.check_circle_outline, color: Colors.white),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'A new 6-digit verification code has been dispatched.',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  ContentService.t('customer.auth.otp_dispatched_toast', 'A new 6-digit verification code has been dispatched.'),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
             ],
           ),
           backgroundColor: AppColors.darkNavy,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.md),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.md),
           duration: const Duration(seconds: 4),
         ),
       );
@@ -111,10 +112,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     if (otp.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please enter the complete 6-digit verification code.'),
+          content: Text(ContentService.t('customer.auth.otp_incomplete_toast', 'Please enter the complete 6-digit verification code.')),
           backgroundColor: AppColors.accent,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.md),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.md),
         ),
       );
       return;
@@ -136,7 +137,16 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     });
 
     if (success) {
-      Navigator.pushReplacementNamed(context, '/onboarding-details');
+      final user = ref.read(authStateProvider).user;
+      final userName = user?['name']?.toString().trim() ?? '';
+      final isOnboarded = user?['isOnboarded'] == true;
+      final isRegistered = userName.isNotEmpty || isOnboarded;
+
+      if (isRegistered) {
+        Navigator.pushNamedAndRemoveUntil(context, '/main', (route) => false);
+      } else {
+        Navigator.pushReplacementNamed(context, '/onboarding-details');
+      }
     } else {
       // Automatically clear input fields and focus back to first box when invalid/error
       for (var controller in _controllers) {
@@ -144,13 +154,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       }
       _focusNodes[0].requestFocus();
 
-      final errorMsg = ref.read(authStateProvider).errorMessage ?? 'Invalid verification code. Please check and try again.';
+      final errorMsg = ref.read(authStateProvider).errorMessage ?? ContentService.t('customer.auth.otp_invalid_toast', 'Invalid verification code. Please check and try again.');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMsg),
           backgroundColor: AppColors.accent,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.md),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.md),
         ),
       );
     }
@@ -158,6 +168,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(contentStateProvider);
+
     final String minutesStr = (_secondsRemaining ~/ 60).toString().padLeft(2, '0');
     final String secondsStr = (_secondsRemaining % 60).toString().padLeft(2, '0');
     final String timerText = '$minutesStr:$secondsStr';
@@ -178,9 +190,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Verify Phone',
-                style: TextStyle(
+              Text(
+                ContentService.t('customer.auth.otp_title', 'Verify Phone'),
+                style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
                   color: AppColors.darkNavy,
@@ -188,7 +200,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Enter the 6-digit code sent to ${widget.phoneNumber.isEmpty ? "+91 XXXXX XXXXX" : widget.phoneNumber}',
+                '${ContentService.t('customer.auth.otp_subtitle', 'Enter the 6-digit code sent to')} ${widget.phoneNumber.isEmpty ? "+91 XXXXX XXXXX" : widget.phoneNumber}',
                 style: const TextStyle(fontSize: 14, color: AppColors.textGray),
               ),
               const SizedBox(height: 32),
@@ -209,7 +221,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                         fontWeight: FontWeight.bold,
                         color: AppColors.darkNavy,
                       ),
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         counterText: '',
                         filled: true,
                         fillColor: AppColors.cardFill,
@@ -241,7 +253,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 child: Column(
                   children: [
                     Text(
-                      "Didn't receive the code?",
+                      ContentService.t('customer.auth.otp_didnt_receive', "Didn't receive the code?"),
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textGray.withValues(alpha: 0.8),
@@ -260,9 +272,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                                       color: AppColors.primary,
                                     ),
                                   )
-                                : const Text(
-                                    'Resend Verification Code',
-                                    style: TextStyle(
+                                : Text(
+                                    ContentService.t('customer.auth.otp_resend_button', 'Resend Verification Code'),
+                                    style: const TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.primary,
@@ -271,7 +283,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                                   ),
                           )
                         : Text(
-                            'Resend code in $timerText',
+                            '${ContentService.t('customer.auth.otp_resend_timer_prefix', 'Resend code in')} $timerText',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -290,7 +302,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: AppRadius.pill),
+                    shape: const RoundedRectangleBorder(borderRadius: AppRadius.pill),
                   ),
                   onPressed: _isVerifying ? null : _verifyOtp,
                   child: _isVerifying
@@ -302,9 +314,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'Verify & Proceed',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      : Text(
+                          ContentService.t('customer.auth.otp_verify_button', 'Verify & Proceed'),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                         ),
                 ),
               ),

@@ -6,8 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_radius.dart';
 import '../../../providers/location_provider.dart';
+import '../../../repositories/service_repository.dart';
 import '../models/home_models.dart';
 import '../../search/screens/search_screen.dart';
+import '../../../core/services/content_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   final Function(Map<String, int> cartItems, double cartTotal)? onCartUpdated;
@@ -138,6 +140,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(locationStateProvider.notifier).fetchLiveLocation();
+    });
     _placeholderTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (mounted) {
         setState(() {
@@ -188,11 +193,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _notifyCartChange() {
     double total = 0.0;
     _cartQuantities.forEach((id, qty) {
-      final service = _allServices.firstWhere(
-        (s) => s.id == id,
-        orElse: () => ServiceItem(id: id, category: '', title: '', price: '', priceValue: 349.0),
-      );
-      total += service.priceValue * qty;
+      final serviceIndex = _allServices.indexWhere((s) => s.id == id);
+      if (serviceIndex != -1) {
+        total += _allServices[serviceIndex].priceValue * qty;
+      } else {
+        final packIndex = _quickPacks.indexWhere((p) => p.id == id);
+        if (packIndex != -1) {
+          total += _quickPacks[packIndex].priceValue * qty;
+        }
+      }
     });
     if (widget.onCartUpdated != null) {
       widget.onCartUpdated!(_cartQuantities, total);
@@ -269,12 +278,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(contentStateProvider);
     final locationState = ref.watch(locationStateProvider);
+    final dynamicServicesAsync = ref.watch(dynamicServicesProvider);
+
+    final dynamicServices = dynamicServicesAsync.maybeWhen(
+      data: (data) => data.services,
+      orElse: () => _allServices,
+    );
+
+    final dynamicPacks = dynamicServicesAsync.maybeWhen(
+      data: (data) => data.packs,
+      orElse: () => _quickPacks,
+    );
+
     final realTimeEta = _calculateRealTimeEtaMins(locationState.latitude, locationState.longitude);
 
     final filteredServices = _selectedCategoryFilter == 'All'
-        ? _allServices
-        : _allServices.where((s) => s.category == _selectedCategoryFilter).toList();
+        ? dynamicServices
+        : dynamicServices.where((s) => s.category == _selectedCategoryFilter).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -346,28 +368,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.near_me_rounded,
-                              size: 14,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              locationState.currentAddress,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
+                        InkWell(
+                          onTap: () {
+                            ref.read(locationStateProvider.notifier).fetchLiveLocation();
+                          },
+                          borderRadius: AppRadius.pill,
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.near_me_rounded,
+                                size: 14,
+                                color: AppColors.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                locationState.currentAddress,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.darkNavy,
+                                ),
+                              ),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 18,
                                 color: AppColors.darkNavy,
                               ),
-                            ),
-                            const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 18,
-                              color: AppColors.darkNavy,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -507,9 +535,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _quickPacks.length,
+                  itemCount: dynamicPacks.length,
                   itemBuilder: (context, index) {
-                    final pack = _quickPacks[index];
+                    final pack = dynamicPacks[index];
                     final qty = _cartQuantities[pack.id] ?? 0;
                     return Container(
                       width: 220,

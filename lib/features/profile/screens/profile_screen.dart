@@ -8,6 +8,8 @@ import '../../../core/constants/app_radius.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/location_provider.dart';
 
+import '../../../core/services/content_service.dart';
+
 class ProfileScreen extends ConsumerStatefulWidget {
   final VoidCallback? onBackToHome;
   const ProfileScreen({super.key, this.onBackToHome});
@@ -357,9 +359,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             }
           },
         ),
-        title: const Text(
-          'My Profile & Account',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.darkNavy),
+        title: Text(
+          ContentService.t('customer.profile.title', 'My Profile & Account'),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.darkNavy),
         ),
         actions: [
           IconButton(
@@ -500,8 +502,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 color: Colors.white,
                 borderRadius: AppRadius.lg,
               ),
-              child: Column(
-                children: [
+              child: Material(
+                color: Colors.transparent,
+                child: Column(
+                  children: [
                   ListTile(
                     leading: const Icon(Icons.person_outline_rounded, color: AppColors.darkNavy),
                     title: const Text('Edit Account Details', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -543,7 +547,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
-          ],
+          ),
+        ],
         ),
       ),
     );

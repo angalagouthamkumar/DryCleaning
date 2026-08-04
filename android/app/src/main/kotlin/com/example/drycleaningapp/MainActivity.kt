@@ -1,4 +1,4 @@
-package com.example.drycleaning_app
+package com.example.drycleaningapp
 
 import io.flutter.embedding.android.FlutterActivity
 

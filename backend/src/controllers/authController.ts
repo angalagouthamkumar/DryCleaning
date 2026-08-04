@@ -107,6 +107,45 @@ export const AuthController = {
     } catch (err: any) {
       res.status(500).json({ success: false, message: err.message });
     }
+  },
+
+  adminLogin: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        res.status(400).json({ success: false, message: 'Email and password are required' });
+        return;
+      }
+
+      const validEmail = process.env.ADMIN_EMAIL || 'admin@drycleaning.com';
+      const validPassword = process.env.ADMIN_PASSWORD || 'admin123456';
+
+      if (email.trim().toLowerCase() !== validEmail.toLowerCase() || password !== validPassword) {
+        res.status(401).json({ success: false, message: 'Invalid admin credentials' });
+        return;
+      }
+
+      const token = jwt.sign(
+        { role: 'admin', email: validEmail },
+        process.env.JWT_SECRET || 'super_secret_drycleaning_jwt_key_2026',
+        { expiresIn: '7d' }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Admin login successful',
+        data: {
+          token,
+          user: {
+            name: 'Admin Owner',
+            email: validEmail,
+            role: 'admin'
+          }
+        }
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, message: err.message });
+    }
   }
 };
 

@@ -15,6 +15,7 @@ export interface IOrder extends Document {
   latitude?: number;
   longitude?: number;
   liveLocationUrl?: string;
+  fcmToken?: string;
   services: string[];
   items: IOrderItem[];
   pickupDate: string;
@@ -30,6 +31,8 @@ export interface IOrder extends Document {
   voiceNoteUrl?: string;
   photoUrls?: string[];
   status: string;
+  assignedRiderId?: string;
+  assignedRiderName?: string;
   createdAt: Date;
 }
 
@@ -48,6 +51,7 @@ const OrderSchema = new Schema<IOrder>({
   latitude: { type: Number },
   longitude: { type: Number },
   liveLocationUrl: { type: String },
+  fcmToken: { type: String },
   services: [{ type: String }],
   items: [OrderItemSchema],
   pickupDate: { type: String, required: true },
@@ -63,6 +67,8 @@ const OrderSchema = new Schema<IOrder>({
   voiceNoteUrl: { type: String },
   photoUrls: [{ type: String }],
   status: { type: String, default: 'Placed' },
+  assignedRiderId: { type: String, default: 'RIDER_101' },
+  assignedRiderName: { type: String, default: 'Rider Partner #101' },
   createdAt: { type: Date, default: Date.now },
 });
 

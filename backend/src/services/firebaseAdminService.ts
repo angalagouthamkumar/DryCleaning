@@ -14,9 +14,9 @@ export const FirebaseAdminService = {
         credential: admin.credential.applicationDefault(),
       });
       isInitialized = true;
-      console.log('✅ Firebase Admin SDK initialized successfully');
+      console.log('[SUCCESS] Firebase Admin SDK initialized successfully');
     } catch (e) {
-      console.warn('⚠️ Firebase Admin SDK initialized without default credentials (Dev fallback mode active)');
+      console.warn('[NOTICE] Firebase Admin SDK initialized without default credentials (Dev fallback mode active)');
     }
   },
 
@@ -32,7 +32,7 @@ export const FirebaseAdminService = {
       // Dev mode fallback when service account key is not mounted
       return { uid: `firebase_${Date.now()}`, phoneNumber: '+919876543210' };
     } catch (err) {
-      console.error('❌ Firebase ID Token verification warning/error:', err);
+      console.error('[ERROR] Firebase ID Token verification warning/error:', err);
       // In development mode, return fallback if token is passed
       if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
         return { uid: `firebase_dev_${Date.now()}` };
@@ -41,4 +41,3 @@ export const FirebaseAdminService = {
     }
   }
 };
-

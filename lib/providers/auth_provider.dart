@@ -40,20 +40,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> checkInitialAuthStatus() async {
-    final isLoggedIn = await _repository.isLoggedIn();
-    final savedUser = await _repository.getUserData();
-    final token = await _repository.getToken();
+    try {
+      final isLoggedIn = await _repository.isLoggedIn();
+      final savedUser = await _repository.getUserData();
+      final token = await _repository.getToken();
 
-    if (isLoggedIn || savedUser != null || (token != null && token.isNotEmpty)) {
-      final user = savedUser ?? await _repository.getMe() ?? {};
-      final phone = user['phoneNumber']?.toString() ?? '';
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-        phoneNumber: phone.isNotEmpty ? phone : state.phoneNumber,
-      );
-      return;
-    }
+      if (isLoggedIn || savedUser != null || (token != null && token.isNotEmpty)) {
+        final user = savedUser ?? await _repository.getMe() ?? {};
+        final phone = user['phoneNumber']?.toString() ?? '';
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: user,
+          phoneNumber: phone.isNotEmpty ? phone : state.phoneNumber,
+        );
+        return;
+      }
+    } catch (_) {}
     state = state.copyWith(status: AuthStatus.unauthenticated);
   }
 
@@ -150,7 +152,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       'name': name,
       'email': email,
       'phoneNumber': phoneNumber,
+      'isOnboarded': true,
+      // ignore: use_null_aware_elements
       if (address != null) 'fullAddress': address,
+      // ignore: use_null_aware_elements
       if (profilePic != null) 'profilePic': profilePic,
     };
     state = state.copyWith(

@@ -4,11 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_radius.dart';
 import '../../../providers/order_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/location_provider.dart';
+import '../../../core/services/content_service.dart';
+import '../../../repositories/order_repository.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   final double subtotal;
@@ -27,7 +33,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
-  String _selectedPickupSlot = '⚡ Express Fast Pickup & Delivery';
+  String _selectedPickupSlot = 'Express Fast Pickup & Delivery';
   String _selectedPaymentMethod = '';
   final TextEditingController _notesController = TextEditingController();
 
@@ -64,6 +70,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final List<XFile> _selectedPhotos = [];
   final List<String> _selectedPhotosBase64 = [];
 
+  late final AudioRecorder _audioRecorder;
+  AudioPlayer? _audioPlayer;
+  String? _recordedAudioPath;
+  int _recordDurationSeconds = 0;
+  Timer? _recordTimer;
+  bool _isPlayingPreview = false;
+
   final List<Map<String, String>> _slots = const [
     {
       'title': 'Tomorrow, 2:00 PM - 4:00 PM',
@@ -71,7 +84,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       'isExpress': 'false',
     },
     {
-      'title': '⚡ Express Fast Pickup & Delivery',
+      'title': 'Express Fast Pickup & Delivery',
       'subtitle': 'Fastest rider dispatch to your doorstep',
       'isExpress': 'true',
     },
@@ -90,6 +103,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    _audioRecorder = AudioRecorder();
     _selectedPickupSlot = 'Tomorrow, 2:00 PM - 4:00 PM';
     _selectedPaymentMethod = 'SemPay UPI Gateway (Instant Auto-App)';
     _cartQuantities = Map<String, int>.from(
@@ -110,7 +124,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   void dispose() {
     _hintTimer?.cancel();
+    _recordTimer?.cancel();
     _notesController.dispose();
+    _audioRecorder.dispose();
+    _audioPlayer?.dispose();
     super.dispose();
   }
 
@@ -157,23 +174,107 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
-  void _toggleVoiceNoteRecording() {
+  Future<void> _toggleVoiceNoteRecording() async {
     if (_isRecordingVoice) {
-      setState(() {
-        _isRecordingVoice = false;
-        _hasVoiceInstruction = true;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🎤 Voice instruction recorded and attached to order!'),
-          backgroundColor: AppColors.primary,
-        ),
-      );
+      // Stop recording
+      try {
+        final path = await _audioRecorder.stop();
+        _recordTimer?.cancel();
+        setState(() {
+          _isRecordingVoice = false;
+          _recordedAudioPath = path;
+          _hasVoiceInstruction = path != null && path.isNotEmpty;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Voice instruction recorded (${_recordDurationSeconds}s) and attached to order!'),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('Stop recording error: $e');
+      }
     } else {
-      setState(() {
-        _isRecordingVoice = true;
+      // Request microphone permission
+      try {
+        final micPermission = await Permission.microphone.request();
+        if (!micPermission.isGranted) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Microphone permission is required to record voice instructions.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+          return;
+        }
+
+        if (await _audioRecorder.hasPermission()) {
+          final tempDir = await getTemporaryDirectory();
+          final filePath = '${tempDir.path}/voice_note_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+          await _audioRecorder.start(
+            const RecordConfig(encoder: AudioEncoder.aacLc),
+            path: filePath,
+          );
+
+          setState(() {
+            _isRecordingVoice = true;
+            _recordDurationSeconds = 0;
+            _recordedAudioPath = null;
+            _hasVoiceInstruction = false;
+          });
+
+          _recordTimer?.cancel();
+          _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+            if (mounted && _isRecordingVoice) {
+              setState(() {
+                _recordDurationSeconds++;
+              });
+            }
+          });
+        }
+      } catch (e) {
+        debugPrint('Start recording exception: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Microphone recording error: $e'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _playRecordedPreview() async {
+    if (_recordedAudioPath == null) return;
+    if (_isPlayingPreview) {
+      await _audioPlayer?.stop();
+      setState(() => _isPlayingPreview = false);
+    } else {
+      _audioPlayer ??= AudioPlayer();
+      await _audioPlayer!.play(DeviceFileSource(_recordedAudioPath!));
+      setState(() => _isPlayingPreview = true);
+      _audioPlayer!.onPlayerComplete.listen((_) {
+        if (mounted) setState(() => _isPlayingPreview = false);
       });
     }
+  }
+
+  void _deleteRecordedVoice() async {
+    await _audioPlayer?.stop();
+    setState(() {
+      _recordedAudioPath = null;
+      _hasVoiceInstruction = false;
+      _isRecordingVoice = false;
+      _recordDurationSeconds = 0;
+      _isPlayingPreview = false;
+    });
   }
 
   void _showSemPayQrDialog(double amount) {
@@ -273,7 +374,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
                 const SizedBox(height: 16),
                 const Text(
-                  '⚡ Auto-Verifying Payment via SemPay Gateway...',
+                  'Auto-Verifying Payment via SemPay Gateway...',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.green),
                 ),
                 const SizedBox(height: 16),
@@ -409,6 +510,33 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       final String generatedOrderId = "ORD-${DateTime.now().millisecondsSinceEpoch}";
 
+      // Upload real audio and photo attachments to backend
+      String uploadedVoiceUrl = "";
+      List<String> uploadedPhotoUrls = [];
+
+      final orderRepo = ref.read(orderRepositoryProvider);
+
+      if (_hasVoiceInstruction && _recordedAudioPath != null && _recordedAudioPath!.isNotEmpty) {
+        debugPrint('Uploading recorded audio file: $_recordedAudioPath');
+        final serverAudioUrl = await orderRepo.uploadAudio(_recordedAudioPath!);
+        if (serverAudioUrl != null && serverAudioUrl.isNotEmpty) {
+          uploadedVoiceUrl = serverAudioUrl;
+          debugPrint('Audio uploaded successfully to backend: $uploadedVoiceUrl');
+        }
+      }
+
+      if (_selectedPhotos.isNotEmpty) {
+        final paths = _selectedPhotos.map((f) => f.path).toList();
+        debugPrint('Uploading ${paths.length} photo attachments');
+        final serverPhotoUrls = await orderRepo.uploadImages(paths);
+        if (serverPhotoUrls.isNotEmpty) {
+          uploadedPhotoUrls = serverPhotoUrls;
+          debugPrint('Photos uploaded successfully to backend: $uploadedPhotoUrls');
+        } else {
+          uploadedPhotoUrls = _selectedPhotosBase64.isNotEmpty ? _selectedPhotosBase64 : paths;
+        }
+      }
+
       final orderPayload = {
         "orderId": generatedOrderId,
         "customerName": realCustomerName,
@@ -437,8 +565,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         "grandTotal": grandTotal,
         "notes": _notesController.text.trim(),
         "hasVoiceInstruction": _hasVoiceInstruction,
-        "voiceNoteUrl": _hasVoiceInstruction ? "https://actions.google.com/sounds/v1/speech/person_speaking.ogg" : "",
-        "photoUrls": _selectedPhotosBase64.isNotEmpty ? _selectedPhotosBase64 : _selectedPhotos.map((p) => p.path).toList(),
+        "voiceNoteUrl": uploadedVoiceUrl,
+        "photoUrls": uploadedPhotoUrls,
         "status": "Placed",
       };
 
@@ -452,7 +580,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       if (!mounted) return;
       _showOrderSuccessModal(finalOrderId.toString());
     } catch (e) {
-      print('Order placement exception: $e');
+      debugPrint('Order placement exception: $e');
       final generatedOrderId = "ORD-${DateTime.now().millisecondsSinceEpoch}";
       if (mounted) {
         _showOrderSuccessModal(generatedOrderId);
@@ -470,7 +598,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     if (_selectedPaymentMethod.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('⚠️ Please select a payment option (SemPay UPI Gateway or Cash on Delivery) to proceed.'),
+          content: Text('Please select a payment option (SemPay UPI Gateway or Cash on Delivery) to proceed.'),
           backgroundColor: Colors.redAccent,
           duration: Duration(seconds: 3),
         ),
@@ -487,6 +615,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(contentStateProvider);
     const double deliveryCharge = 30.0;
     const double handlingFee = 15.0;
     final double subtotal = _calculatedSubtotal;
@@ -501,7 +630,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Checkout & Summary'), elevation: 0),
+      appBar: AppBar(title: Text(ContentService.t('customer.checkout.header_title', 'Checkout & Schedule')), elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -856,7 +985,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: AppRadius.md),
-                      side: BorderSide(color: _hasVoiceInstruction ? Colors.green : AppColors.primary),
+                      side: BorderSide(color: _hasVoiceInstruction ? Colors.green : (_isRecordingVoice ? Colors.red : AppColors.primary)),
                       backgroundColor: _isRecordingVoice ? Colors.red.withValues(alpha: 0.1) : Colors.transparent,
                     ),
                     onPressed: _toggleVoiceNoteRecording,
@@ -867,18 +996,51 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ),
                     label: Text(
                       _isRecordingVoice
-                          ? 'Recording...'
+                          ? 'Stop (${_recordDurationSeconds}s)'
                           : (_hasVoiceInstruction ? 'Voice Added' : 'Record Voice'),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: _hasVoiceInstruction ? Colors.green : AppColors.darkNavy,
+                        color: _hasVoiceInstruction ? Colors.green : (_isRecordingVoice ? Colors.red : AppColors.darkNavy),
                       ),
                     ),
                   ),
                 ),
               ],
             ),
+            if (_hasVoiceInstruction && _recordedAudioPath != null)
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.1),
+                  borderRadius: AppRadius.md,
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                      icon: Icon(_isPlayingPreview ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded, color: Colors.green, size: 30),
+                      onPressed: _playRecordedPreview,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _isPlayingPreview ? 'Playing voice preview...' : 'Recorded Voice Note (${_recordDurationSeconds}s)',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.darkNavy),
+                      ),
+                    ),
+                    IconButton(
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22),
+                      onPressed: _deleteRecordedVoice,
+                    ),
+                  ],
+                ),
+              ),
 
             const SizedBox(height: 20),
 

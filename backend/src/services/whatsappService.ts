@@ -5,7 +5,7 @@ export const WhatsAppService = {
       cleanPhone = `91${cleanPhone}`;
     }
 
-    const message = `*Dry Cleaning & Laundry App*\nYour 6-digit verification code is: *${code}*\n\nThis code expires in 2 minutes. Do not share it with anyone.`;
+    const message = `*Dry Cleaning*\nYour 6-digit verification code is: *${code}*\n\nThis code expires in 2 minutes. Do not share it with anyone.`;
 
     console.log(`\n==================================================`);
     console.log(`[SMS OTP DISPATCH]`);

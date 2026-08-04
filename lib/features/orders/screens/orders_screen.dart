@@ -6,6 +6,8 @@ import '../../../core/constants/app_radius.dart';
 import '../../../providers/order_provider.dart';
 import '../../checkout/screens/checkout_screen.dart';
 
+import '../../../core/services/content_service.dart';
+
 class OrdersScreen extends ConsumerStatefulWidget {
   final VoidCallback? onBackToHome;
   const OrdersScreen({super.key, this.onBackToHome});
@@ -28,27 +30,17 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   ];
 
   int _getStageIndex(String status) {
-    switch (status.trim().toLowerCase()) {
-      case 'placed':
-        return 0;
-      case 'confirmed':
-        return 1;
-      case 'picked up':
-      case 'picked_up':
-        return 2;
-      case 'in cleaning':
-      case 'incleaning':
-        return 3;
-      case 'ready':
-        return 4;
-      case 'out for delivery':
-      case 'outfordelivery':
-        return 5;
-      case 'delivered':
-        return 6;
-      default:
-        return 0;
-    }
+    final s = status.trim().toLowerCase();
+    
+    if (s.contains('delivered')) return 6;
+    if (s.contains('out for delivery') || s.contains('reached') || s.contains('delivery partner assigned') || s.contains('partner assigned')) return 5;
+    if (s.contains('ready')) return 4;
+    if (s.contains('cleaning') || s.contains('washing') || s.contains('ironing') || s.contains('quality') || s.contains('inspection') || s.contains('received') || s.contains('store')) return 3;
+    if (s.contains('picked') || s.contains('pickup completed')) return 2;
+    if (s.contains('assigned') || s.contains('way') || s.contains('confirmed')) return 1;
+    if (s.contains('placed')) return 0;
+    
+    return 0;
   }
 
   void _makePhoneCall(String phoneNumber) async {
@@ -89,7 +81,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('🚫 Order cancelled and moved to Past History.'),
+                    content: Text('Order cancelled and moved to Past History.'),
                     backgroundColor: Colors.redAccent,
                   ),
                 );
@@ -120,7 +112,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('My Orders'),
+        title: Text(ContentService.t('customer.orders.title', 'My Orders')),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: AppColors.darkNavy),
           onPressed: () {
@@ -259,6 +251,10 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         final itemsCount = items.fold<int>(0, (sum, i) => sum + ((i['quantity'] ?? 1) as int));
         final status = (order['status'] ?? 'Placed').toString();
         final stageIndex = _getStageIndex(status);
+        final String rawAssignedRider = (order['assignedRiderId'] ?? '').toString().trim();
+        final bool isRiderAssigned = rawAssignedRider.isNotEmpty &&
+            rawAssignedRider != 'RIDER_101' &&
+            !status.toLowerCase().contains('placed');
 
         // Extract Customer Payment Method
         final paymentMethodRaw = (order['paymentMethod'] ?? 'Cash on Delivery').toString();
@@ -371,7 +367,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '⚡ Estimated Delivery: $formattedEstDelivery',
+                            'Estimated Delivery: $formattedEstDelivery',
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.darkNavy),
                           ),
                         ),
@@ -444,28 +440,29 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 
               const SizedBox(height: 16),
 
-              // Cancel Order Action Button (Customer Action)
-              SizedBox(
-                width: double.infinity,
-                height: 42,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.redAccent, width: 1.5),
-                    shape: const RoundedRectangleBorder(borderRadius: AppRadius.pill),
-                  ),
-                  onPressed: () {
-                    final orderMongoId = (order['_id'] ?? order['orderId'] ?? order['id']).toString();
-                    _showCancelConfirmationDialog(orderId.toString(), orderMongoId);
-                  },
-                  icon: const Icon(Icons.cancel_outlined, size: 16, color: Colors.redAccent),
-                  label: const Text(
-                    'Cancel Order',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.redAccent),
+              // Cancel Order Action Button (Only visible BEFORE rider accepts order & status is Placed)
+              if (!isRiderAssigned && stageIndex == 0 && status.toLowerCase().contains('placed')) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 42,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                      shape: const RoundedRectangleBorder(borderRadius: AppRadius.pill),
+                    ),
+                    onPressed: () {
+                      final orderMongoId = (order['_id'] ?? order['orderId'] ?? order['id']).toString();
+                      _showCancelConfirmationDialog(orderId.toString(), orderMongoId);
+                    },
+                    icon: const Icon(Icons.cancel_outlined, size: 16, color: Colors.redAccent),
+                    label: const Text(
+                      'Cancel Order',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.redAccent),
+                    ),
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 10),
+                const SizedBox(height: 10),
+              ],
 
               // Call / WhatsApp Shop Buttons
               Row(

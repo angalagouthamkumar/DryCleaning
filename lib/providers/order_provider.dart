@@ -39,7 +39,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
 
   void _startRealtimePolling() {
     _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       fetchOrders(silent: true);
     });
   }

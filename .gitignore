@@ -68,3 +68,4 @@ local.properties
 # Symbolication & Obfuscation
 app.*.symbols
 app.*.map.json
+.vercel

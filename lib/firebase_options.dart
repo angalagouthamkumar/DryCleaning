@@ -31,37 +31,37 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAoR-d5zsxHh_mk9ZlvA6vnsVOQPlVewe8',
-    appId: '1:1024603054765:web:f4638108dd897c99691c24',
-    messagingSenderId: '1024603054765',
-    projectId: 'authentication-e3bf4',
-    authDomain: 'authentication-e3bf4.firebaseapp.com',
-    storageBucket: 'authentication-e3bf4.firebasestorage.app',
+    apiKey: 'AIzaSyAU-AACJK4KDjr5mYpTlFVNzR2o53ki6Qs',
+    appId: '1:756489968417:android:f427c1916f48bff1f8fc60',
+    messagingSenderId: '756489968417',
+    projectId: 'drycleaning-52a74',
+    authDomain: 'drycleaning-52a74.firebaseapp.com',
+    storageBucket: 'drycleaning-52a74.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAoR-d5zsxHh_mk9ZlvA6vnsVOQPlVewe8',
-    appId: '1:1024603054765:android:f4638108dd897c99691c24',
-    messagingSenderId: '1024603054765',
-    projectId: 'authentication-e3bf4',
-    storageBucket: 'authentication-e3bf4.firebasestorage.app',
+    apiKey: 'AIzaSyAU-AACJK4KDjr5mYpTlFVNzR2o53ki6Qs',
+    appId: '1:756489968417:android:f427c1916f48bff1f8fc60',
+    messagingSenderId: '756489968417',
+    projectId: 'drycleaning-52a74',
+    storageBucket: 'drycleaning-52a74.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAoR-d5zsxHh_mk9ZlvA6vnsVOQPlVewe8',
-    appId: '1:1024603054765:ios:f4638108dd897c99691c24',
-    messagingSenderId: '1024603054765',
-    projectId: 'authentication-e3bf4',
-    storageBucket: 'authentication-e3bf4.firebasestorage.app',
-    iosBundleId: 'com.example.drycleaning_app',
+    apiKey: 'AIzaSyAU-AACJK4KDjr5mYpTlFVNzR2o53ki6Qs',
+    appId: '1:756489968417:android:f427c1916f48bff1f8fc60',
+    messagingSenderId: '756489968417',
+    projectId: 'drycleaning-52a74',
+    storageBucket: 'drycleaning-52a74.firebasestorage.app',
+    iosBundleId: 'com.example.drycleaningapp',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAoR-d5zsxHh_mk9ZlvA6vnsVOQPlVewe8',
-    appId: '1:1024603054765:ios:f4638108dd897c99691c24',
-    messagingSenderId: '1024603054765',
-    projectId: 'authentication-e3bf4',
-    storageBucket: 'authentication-e3bf4.firebasestorage.app',
-    iosBundleId: 'com.example.drycleaning_app',
+    apiKey: 'AIzaSyAU-AACJK4KDjr5mYpTlFVNzR2o53ki6Qs',
+    appId: '1:756489968417:android:f427c1916f48bff1f8fc60',
+    messagingSenderId: '756489968417',
+    projectId: 'drycleaning-52a74',
+    storageBucket: 'drycleaning-52a74.firebasestorage.app',
+    iosBundleId: 'com.example.drycleaningapp',
   );
 }

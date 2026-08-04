@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_radius.dart';
+import '../../../core/services/content_service.dart';
 import '../../../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -27,10 +28,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (rawPhone.isEmpty || rawPhone.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please enter a valid 10-digit mobile number'),
+          content: Text(ContentService.t('customer.auth.login_invalid_phone_toast', 'Please enter a valid 10-digit mobile number')),
           backgroundColor: AppColors.accent,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.md),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.md),
         ),
       );
       return;
@@ -52,13 +53,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (success) {
       Navigator.pushNamed(context, '/otp', arguments: fullPhone);
     } else {
-      final errorMsg = ref.read(authStateProvider).errorMessage ?? 'Failed to send OTP code via SMS';
+      final errorMsg = ref.read(authStateProvider).errorMessage ?? ContentService.t('customer.auth.login_otp_failed_toast', 'Failed to send OTP code via SMS');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMsg),
           backgroundColor: AppColors.accent,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.md),
+          shape: const RoundedRectangleBorder(borderRadius: AppRadius.md),
         ),
       );
     }
@@ -66,6 +67,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(contentStateProvider);
+
     return Scaffold(
       backgroundColor: AppColors.cardFill,
       body: SafeArea(
@@ -87,12 +90,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 32.0),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32.0),
                       child: Text(
-                        'Login with your mobile number',
+                        ContentService.t('customer.auth.login_title', 'Login with your mobile number'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                           color: AppColors.darkNavy,
@@ -114,9 +117,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Enter Phone Number',
-                    style: TextStyle(
+                  Text(
+                    ContentService.t('customer.auth.login_phone_label', 'Enter Phone Number'),
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: AppColors.darkNavy,
@@ -150,7 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              '🇮🇳  +91',
+                              '+91',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -160,7 +163,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
                       ),
-                      hintText: '98765 43210',
+                      hintText: ContentService.t('customer.auth.login_phone_placeholder', '98765 43210'),
                       hintStyle: const TextStyle(color: AppColors.textGray, fontWeight: FontWeight.w500),
                       filled: true,
                       fillColor: AppColors.cardFill,
@@ -192,9 +195,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'LOGIN',
-                              style: TextStyle(
+                          : Text(
+                              ContentService.t('customer.auth.login_button', 'LOGIN'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.5,
@@ -211,4 +214,3 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
-

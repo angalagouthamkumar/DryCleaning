@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_radius.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/services/content_service.dart';
 import '../../../providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -13,26 +15,80 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _navigated = false;
+
   @override
   void initState() {
     super.initState();
+    debugPrint('[STARTUP] Customer SplashScreen Loaded');
     _checkAuthAndNavigate();
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
+    final startTime = DateTime.now();
 
-    final authState = ref.read(authStateProvider);
-    if (authState.status == AuthStatus.authenticated) {
-      Navigator.pushReplacementNamed(context, '/main');
-    } else {
-      Navigator.pushReplacementNamed(context, '/onboarding');
+    try {
+      debugPrint('[STARTUP] Customer Auth & Content check started');
+      // Fetch live content in parallel with auth check
+      try {
+        final dio = ref.read(dioProvider);
+        ref.read(contentStateProvider.notifier).fetchLiveContent(dio);
+      } catch (contentErr) {
+        debugPrint('Live content fetch non-fatal notice: $contentErr');
+      }
+
+      await ref.read(authStateProvider.notifier).checkInitialAuthStatus().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+          debugPrint('Auth check timed out after 3s, proceeding with cached/unauthenticated state');
+        },
+      );
+
+      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+      if (elapsed < 1200) {
+        await Future.delayed(Duration(milliseconds: 1200 - elapsed));
+      }
+    } catch (e, stack) {
+      debugPrint('Splash screen auth check exception: $e\n$stack');
+    } finally {
+      _performNavigation();
+    }
+  }
+
+  void _performNavigation() {
+    if (_navigated || !mounted) return;
+    _navigated = true;
+
+    try {
+      final authState = ref.read(authStateProvider);
+      debugPrint('[STARTUP] Navigating Customer App. Auth status: ${authState.status}');
+
+      if (authState.status == AuthStatus.authenticated) {
+        final user = authState.user;
+        final userName = user?['name']?.toString().trim() ?? '';
+        final isOnboarded = user?['isOnboarded'] == true;
+        final isRegistered = userName.isNotEmpty || isOnboarded;
+
+        if (isRegistered) {
+          Navigator.pushReplacementNamed(context, '/main');
+        } else {
+          Navigator.pushReplacementNamed(context, '/onboarding-details');
+        }
+      } else {
+        Navigator.pushReplacementNamed(context, '/onboarding');
+      }
+    } catch (navErr) {
+      debugPrint('Navigation exception fallback to /onboarding: $navErr');
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/onboarding');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(contentStateProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Center(
@@ -56,20 +112,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Discover',
+              Text(
+                ContentService.t('customer.auth.splash_discover', 'Discover'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textDark,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Our Fastest Drycleaning Service',
+              Text(
+                ContentService.t('customer.auth.splash_tagline', 'Our Fastest Drycleaning Service'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w800,
                   color: AppColors.darkNavy,

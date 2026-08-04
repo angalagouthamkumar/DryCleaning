@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "1024603054765",
-    "project_id": "authentication-e3bf4",
-    "storage_bucket": "authentication-e3bf4.firebasestorage.app"
+    "project_number": "756489968417",
+    "project_id": "drycleaning-52a74",
+    "storage_bucket": "drycleaning-52a74.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1024603054765:android:f4638108dd897c99691c24",
+        "mobilesdk_app_id": "1:756489968417:android:f427c1916f48bff1f8fc60",
         "android_client_info": {
-          "package_name": "com.example.drycleaning_app"
+          "package_name": "com.example.drycleaningapp"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAoR-d5zsxHh_mk9ZlvA6vnsVOQPlVewe8"
+          "current_key": "AIzaSyAU-AACJK4KDjr5mYpTlFVNzR2o53ki6Qs"
         }
       ],
       "services": {

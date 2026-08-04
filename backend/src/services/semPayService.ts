@@ -45,13 +45,13 @@ export const SemPayService = {
     const upiIntentUrl = `upi://pay?pa=${recipientVpa}&pn=${encodeURIComponent('DryCleaningApp')}&tr=${transactionId}&tn=${encodedNotes}&am=${req.amount.toFixed(2)}&cu=INR`;
 
     console.log(`\n==================================================`);
-    console.log(`💳 [SEMPAY UPI GATEWAY INITIATE - ENV: ${env.toUpperCase()}]`);
-    console.log(`🔑 Client ID: ${clientId}`);
-    console.log(`🆔 Order ID: ${req.orderId} | Txn ID: ${transactionId}`);
-    console.log(`👤 Customer: ${req.customerName} (${req.customerPhone})`);
-    console.log(`💰 Amount: ₹${req.amount}`);
-    console.log(`📲 UPI Intent: ${upiIntentUrl}`);
-    console.log(`🔏 HMAC Signature: ${signature.substring(0, 16)}...`);
+    console.log(`[SEMPAY UPI GATEWAY INITIATE - ENV: ${env.toUpperCase()}]`);
+    console.log(`Client ID: ${clientId}`);
+    console.log(`Order ID: ${req.orderId} | Txn ID: ${transactionId}`);
+    console.log(`Customer: ${req.customerName} (${req.customerPhone})`);
+    console.log(`Amount: RS ${req.amount}`);
+    console.log(`UPI Intent: ${upiIntentUrl}`);
+    console.log(`HMAC Signature: ${signature.substring(0, 16)}...`);
     console.log(`==================================================\n`);
 
     return {
